@@ -1,0 +1,105 @@
+import torch
+import cv2
+import numpy as np 
+count=False
+  
+x1, y1, x2, y2=0,0,0,0
+flag=True
+
+def onchange(val):
+    pass
+
+cv2.namedWindow("frame")
+cv2.createTrackbar("x", "frame", 26, 100, onchange)
+cv2.createTrackbar("y", "frame", 20, 100, onchange)
+ 
+ 
+def scanner(frame, save, x1, y1, x2, y2):
+    try:
+        fy, fx, _ = frame.shape  
+        sy, sx, _ = save.shape    
+
+        if x2+5==fx and y2+5==fy:#counting of the objects
+            count=count+1
+            counter =False 
+        if fx+5==x1 and fx +5==x2:
+            counter=True                         
+        start_y = y1*sy//fy  
+        end_y = y2*sy//fy     
+        start_x = x1*sx//fx    
+        end_x = x2*sx//fx     
+ 
+        if (start_x and start_y and end_x and end_y !=0):    
+            img = save[start_y:end_y, start_x:end_x, :]
+            img=cv2.resize(img,(end_x-start_x,end_y-start_y))
+            return img
+    except:
+        return np.ones((1,1,3)).astype(np.uint8)      
+        
+ 
+model = torch.hub.load('ultralytics/yolov5', 'custom', path=r"best.pt")
+  
+cap = cv2.VideoCapture(r"C:\Users\yoges\Desktop\test.mp4")
+
+while cap.isOpened():
+    ret, frame = cap.read()
+    if not ret:
+        break
+    saves=frame 
+    print(frame.shape) 
+    results = model(frame)
+    frames=frame
+
+
+    gray = cv2.cvtColor(frames, cv2.COLOR_BGR2GRAY)
+ 
+    _, binary = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+ 
+    hh, ww, _ = frame.shape  
+    boxes = pytesseract.image_to_boxes(binary, lang='eng')
+ 
+    for b in boxes.splitlines():
+        b = b.split(' ')
+        xq, yq, x2q, y2q = int(b[1]), int(b[2]), int(b[3]), int(b[4])
+        
+        yq, y2q = hh - yq, hh - y2q
+ 
+        cv2.rectangle(frames, (xq, y2q), (x2q, yq), (0, 255, 0), 2)
+
+ 
+    detections = results.xyxy[0].numpy() 
+   
+    x1l = cv2.getTrackbarPos("x", "frame")/10
+    y1l = cv2.getTrackbarPos("y", "frame")
+
+    for det in detections:
+        x1, y1, x2, y2, conf, cls = det
+        print(f'Class: {int(cls)}, Confidence: {conf}, Box: [{x1}, {y1}, {x2}, {y2}]')
+         
+        cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
+        try:
+            img=scanner(frame,saves,int(x1),int(y1),int(x2),int(y2))
+            sx,sy,_=img.shape
+            print(img.shape)
+            frame[0:sx,0:sy,:]=img
+
+            
+                             
+
+            
+        except:
+            frame=frame 
+    
+   
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    _, binary = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    fx, fy, _ = frame.shape
+     
+     
+    cv2.imshow('frame', frame)      
+     
+    if cv2.waitKey(1) & 0xFF == ord(' '): 
+        break
+
+cap.release()
+cv2.destroyAllWindows()
