@@ -1,4 +1,4 @@
-<h3> concise summary:</h3>
+<h2> concise summary:</h2>
 
 Real-Time Object Detection and Tracking Project
 
